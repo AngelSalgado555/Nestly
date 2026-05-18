@@ -8,6 +8,31 @@ export default function Register({ onNavigate }) {
     const [passwordConfirmation, setPasswordConfirmation] = React.useState("");
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState(null);
+    const [passwordError, setPasswordError] = React.useState(null);
+    const [passwordConfirmError, setPasswordConfirmError] =
+        React.useState(null);
+    const [showPassword, setShowPassword] = React.useState(false);
+    const [showPasswordConfirm, setShowPasswordConfirm] = React.useState(false);
+
+    function validate() {
+        setPasswordError(null);
+        setPasswordConfirmError(null);
+
+        if (password.length < 6) {
+            setPasswordError("La contraseña debe tener al menos 6 caracteres.");
+        }
+
+        if (password !== passwordConfirmation) {
+            setPasswordConfirmError("Las contraseñas no coinciden.");
+        }
+
+        return (
+            !passwordError &&
+            !passwordConfirmError &&
+            password.length >= 6 &&
+            password === passwordConfirmation
+        );
+    }
 
     async function submitRegister() {
         setLoading(true);
@@ -16,7 +41,7 @@ export default function Register({ onNavigate }) {
             const csrfToken = document
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute("content");
-            const res = await fetch("/api/register", {
+            const res = await fetch("/register", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -38,7 +63,16 @@ export default function Register({ onNavigate }) {
 
             const data = await res.json();
             if (data && data.success) {
-                onNavigate && onNavigate("home");
+                try {
+                    localStorage.setItem(
+                        "nestly_user",
+                        JSON.stringify(data.user),
+                    );
+                    localStorage.setItem("nestly_view", "home");
+                } catch (e) {
+                    // ignore storage errors
+                }
+                onNavigate("home");
             }
         } catch (e) {
             setError(e.message || "Error desconocido");
@@ -68,6 +102,10 @@ export default function Register({ onNavigate }) {
                     className="space-y-4"
                     onSubmit={(e) => {
                         e.preventDefault();
+                        if (!validate()) {
+                            setLoading(false);
+                            return;
+                        }
                         submitRegister();
                     }}
                 >
@@ -99,41 +137,177 @@ export default function Register({ onNavigate }) {
 
                     <div>
                         <label className="block text-sm text-slate-700 mb-1">
-                            Teléfono (opcional)
-                        </label>
-                        <input
-                            type="tel"
-                            placeholder="+34 600 000 000"
-                            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-slate-900"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm text-slate-700 mb-1">
                             Contraseña
                         </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Contraseña"
-                            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-slate-900"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    if (
+                                        passwordError &&
+                                        e.target.value.length >= 6
+                                    )
+                                        setPasswordError(null);
+                                    if (
+                                        passwordConfirmError &&
+                                        e.target.value === passwordConfirmation
+                                    )
+                                        setPasswordConfirmError(null);
+                                }}
+                                placeholder="Contraseña"
+                                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-slate-900 ${passwordError ? "border-red-500" : ""}`}
+                            />
+
+                            <button
+                                type="button"
+                                aria-label={
+                                    showPassword
+                                        ? "Ocultar contraseña"
+                                        : "Mostrar contraseña"
+                                }
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600"
+                            >
+                                {showPassword ? (
+                                    <svg
+                                        className="w-5 h-5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M3 3l18 18"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                        <path
+                                            d="M17.94 17.94C16.22 19.01 14.15 19.66 12 19.66c-6 0-10-7-10-7a17.9 17.9 0 0 1 3.58-4.1"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                ) : (
+                                    <svg
+                                        className="w-5 h-5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="3"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                        />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+                        {passwordError && (
+                            <p className="mt-2 text-sm text-red-600">
+                                {passwordError}
+                            </p>
+                        )}
                     </div>
 
                     <div>
                         <label className="block text-sm text-slate-700 mb-1">
                             Confirmar contraseña
                         </label>
-                        <input
-                            type="password"
-                            value={passwordConfirmation}
-                            onChange={(e) =>
-                                setPasswordConfirmation(e.target.value)
-                            }
-                            placeholder="Repite la contraseña"
-                            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-slate-900"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPasswordConfirm ? "text" : "password"}
+                                value={passwordConfirmation}
+                                onChange={(e) => {
+                                    setPasswordConfirmation(e.target.value);
+                                    if (
+                                        passwordConfirmError &&
+                                        e.target.value === password
+                                    )
+                                        setPasswordConfirmError(null);
+                                }}
+                                placeholder="Repite la contraseña"
+                                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-slate-900 ${passwordConfirmError ? "border-red-500" : ""}`}
+                            />
+
+                            <button
+                                type="button"
+                                aria-label={
+                                    showPasswordConfirm
+                                        ? "Ocultar contraseña"
+                                        : "Mostrar contraseña"
+                                }
+                                onClick={() =>
+                                    setShowPasswordConfirm((prev) => !prev)
+                                }
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600"
+                            >
+                                {showPasswordConfirm ? (
+                                    <svg
+                                        className="w-5 h-5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M3 3l18 18"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                        <path
+                                            d="M17.94 17.94C16.22 19.01 14.15 19.66 12 19.66c-6 0-10-7-10-7a17.9 17.9 0 0 1 3.58-4.1"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                ) : (
+                                    <svg
+                                        className="w-5 h-5"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="3"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                        />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+                        {passwordConfirmError && (
+                            <p className="mt-2 text-sm text-red-600">
+                                {passwordConfirmError}
+                            </p>
+                        )}
                     </div>
 
                     <div className="flex items-start gap-3 text-sm text-slate-700">
@@ -154,9 +328,9 @@ export default function Register({ onNavigate }) {
                     <button
                         type="submit"
                         className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700"
-                        onClick={() => onNavigate && onNavigate("home")}
+                        disabled={loading}
                     >
-                        Registrarse
+                        {loading ? "Registrando..." : "Registrarse"}
                     </button>
                 </form>
 

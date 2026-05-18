@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PropertyController;
 
 Route::get("/", function () {
     return view("welcome");
@@ -18,3 +20,27 @@ Route::get("/buyer/dashboard", function () {
 Route::get("/dashboard", function () {
     return view("dashboard");
 })->name("dashboard");
+
+// Home route for authenticated users (SPA entrypoint)
+Route::get("/home", function () {
+    return view("home");
+})->name("home");
+
+// Auth routes (moved from api.php to web.php for session-based auth)
+Route::post("/register", [AuthController::class, "register"]);
+Route::post("/login", [AuthController::class, "login"]);
+Route::post("/logout", [AuthController::class, "logout"]);
+Route::get("/user", [AuthController::class, "user"]);
+Route::post("/user/update", [AuthController::class, "update"]);
+
+// Public property listing (anyone can see listings)
+Route::get("/properties", [PropertyController::class, "index"]);
+
+// Property routes protected by auth (creating and user-specific listings)
+Route::middleware(["auth"])->group(function () {
+    Route::post("/properties", [PropertyController::class, "store"]);
+    Route::get("/users/{userId}/properties", [
+        PropertyController::class,
+        "userProperties",
+    ]);
+});
