@@ -16,6 +16,7 @@ class Property extends Model
         "rooms",
         "bathrooms",
         "area",
+        "status",
     ];
 
     // Relación opcional con el usuario

@@ -59,58 +59,81 @@ export function BuyerView() {
                             No hay propiedades publicadas.
                         </div>
                     ) : (
-                        properties.map((p) => (
-                            <div
-                                key={p.id}
-                                className="border rounded p-4 bg-white shadow-sm"
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                                            {p.title}
-                                            {p.status && (
-                                                <span
-                                                    className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
-                                                >
-                                                    {p.status === "available"
-                                                        ? "Disponible"
-                                                        : p.status === "sold"
-                                                          ? "Vendido"
-                                                          : p.status ===
-                                                              "rented"
-                                                            ? "Alquilado"
-                                                            : "No disponible"}
-                                                </span>
-                                            )}
-                                        </h3>
-                                        <p className="text-sm text-slate-600">
-                                            {p.location}
-                                        </p>
-                                        <p className="text-sm text-slate-500">
-                                            Por:{" "}
-                                            {p.owner?.name ?? "Desconocido"}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="font-bold text-emerald-600">
-                                            {p.price_eur
-                                                ? `${p.price_eur.toFixed(2)} €`
-                                                : "—"}
+                        properties.map((p) => {
+                            const imageUrl =
+                                p.primary_image ||
+                                (p.images && p.images.length
+                                    ? p.images[0].url
+                                    : null);
+                            return (
+                                <div
+                                    key={p.id}
+                                    className="border rounded p-0 bg-white shadow-sm overflow-hidden"
+                                >
+                                    {imageUrl && (
+                                        <div className="w-full h-48 md:h-56 bg-slate-100">
+                                            <img
+                                                src={imageUrl}
+                                                alt={p.title}
+                                                className="w-full h-full object-cover"
+                                            />
                                         </div>
-                                        <div className="text-sm text-slate-500">
-                                            {p.rooms ?? "—"} hab ·{" "}
-                                            {p.bathrooms ?? "—"} baños ·{" "}
-                                            {p.area ? `${p.area} m²` : "—"}
+                                    )}
+                                    <div className="p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-semibold text-lg flex items-center gap-2">
+                                                    {p.title}
+                                                    {p.status && (
+                                                        <span
+                                                            className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                                                        >
+                                                            {p.status ===
+                                                            "available"
+                                                                ? "Disponible"
+                                                                : p.status ===
+                                                                    "sold"
+                                                                  ? "Vendido"
+                                                                  : p.status ===
+                                                                      "rented"
+                                                                    ? "Alquilado"
+                                                                    : "No disponible"}
+                                                        </span>
+                                                    )}
+                                                </h3>
+                                                <p className="text-sm text-slate-600">
+                                                    {p.location}
+                                                </p>
+                                                <p className="text-sm text-slate-500">
+                                                    Por:{" "}
+                                                    {p.owner?.name ??
+                                                        "Desconocido"}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-bold text-emerald-600">
+                                                    {p.price_eur
+                                                        ? `${p.price_eur.toFixed(2)} €`
+                                                        : "—"}
+                                                </div>
+                                                <div className="text-sm text-slate-500">
+                                                    {p.rooms ?? "—"} hab ·{" "}
+                                                    {p.bathrooms ?? "—"} baños ·{" "}
+                                                    {p.area
+                                                        ? `${p.area} m²`
+                                                        : "—"}
+                                                </div>
+                                            </div>
                                         </div>
+                                        {p.description && (
+                                            <p className="mt-2 text-sm text-slate-700">
+                                                {p.description}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                {p.description && (
-                                    <p className="mt-2 text-sm text-slate-700">
-                                        {p.description}
-                                    </p>
-                                )}
-                            </div>
-                        ))
+                            );
+                        })
                     )}
 
                     {pagination && (
@@ -280,50 +303,72 @@ export function MyPropertiesView() {
                             No has publicado propiedades aún.
                         </div>
                     ) : (
-                        properties.map((p) => (
-                            <div
-                                key={p.id}
-                                className="border rounded p-4 bg-white shadow-sm"
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                                            {p.title}
-                                            {p.status && (
-                                                <span
-                                                    className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                        properties.map((p) => {
+                            const imageUrl =
+                                p.primary_image ||
+                                (p.images && p.images.length
+                                    ? p.images[0].url
+                                    : null);
+                            return (
+                                <div
+                                    key={p.id}
+                                    className="border rounded p-0 bg-white shadow-sm overflow-hidden"
+                                >
+                                    {imageUrl && (
+                                        <div className="w-full h-48 md:h-56 bg-slate-100">
+                                            <img
+                                                src={imageUrl}
+                                                alt={p.title}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-semibold text-lg flex items-center gap-2">
+                                                    {p.title}
+                                                    {p.status && (
+                                                        <span
+                                                            className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                                                        >
+                                                            {p.status ===
+                                                            "available"
+                                                                ? "Disponible"
+                                                                : p.status ===
+                                                                    "sold"
+                                                                  ? "Vendido"
+                                                                  : p.status ===
+                                                                      "rented"
+                                                                    ? "Alquilado"
+                                                                    : "No disponible"}
+                                                        </span>
+                                                    )}
+                                                </h3>
+                                                <p className="text-sm text-slate-600">
+                                                    {p.location}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() =>
+                                                        setEditing(p)
+                                                    }
+                                                    className="px-3 py-1 bg-gray-100 rounded"
                                                 >
-                                                    {p.status === "available"
-                                                        ? "Disponible"
-                                                        : p.status === "sold"
-                                                          ? "Vendido"
-                                                          : p.status ===
-                                                              "rented"
-                                                            ? "Alquilado"
-                                                            : "No disponible"}
-                                                </span>
-                                            )}
-                                        </h3>
-                                        <p className="text-sm text-slate-600">
-                                            {p.location}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => setEditing(p)}
-                                            className="px-3 py-1 bg-gray-100 rounded"
-                                        >
-                                            Editar
-                                        </button>
+                                                    Editar
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {p.description && (
+                                            <p className="mt-2 text-sm text-slate-700">
+                                                {p.description}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                {p.description && (
-                                    <p className="mt-2 text-sm text-slate-700">
-                                        {p.description}
-                                    </p>
-                                )}
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             )}
@@ -377,12 +422,12 @@ function EditPropertyModal({ property, onClose, onUpdated }) {
             if (area !== "") fd.append("area", area);
             if (status !== "") fd.append("status", status);
             files.forEach((f) => fd.append("images[]", f));
-
-            fd.append("_method", "PUT")
+            // Use POST with _method=PUT so files are sent reliably to Laravel
+            fd.append("_method", "PUT");
 
             const res = await fetch(`/properties/${property.id}`, {
                 method: "POST",
-                headers: { "X-CSRF-TOKEN": csrf, "Accept": "application/json"},
+                headers: { "X-CSRF-TOKEN": csrf },
                 credentials: "same-origin",
                 body: fd,
             });
@@ -391,13 +436,7 @@ function EditPropertyModal({ property, onClose, onUpdated }) {
                 throw new Error(d.message || "Error al actualizar");
             }
             const data = await res.json();
-            if (data && data.property) {
-                onUpdated(data.property);
-            } else if (data) {
-                onUpdated(data);
-            }
-
-            onClose();
+            if (data && data.property) onUpdated(data.property);
         } catch (e) {
             setError(e.message || "Error");
         } finally {
@@ -495,7 +534,6 @@ function EditPropertyModal({ property, onClose, onUpdated }) {
                             Cancelar
                         </button>
                         <button
-                            type = "button"
                             onClick={submit}
                             disabled={loading}
                             className="px-4 py-2 bg-emerald-600 text-white rounded"

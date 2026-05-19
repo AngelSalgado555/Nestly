@@ -25,6 +25,25 @@ class PropertyResource extends JsonResource
             "bathrooms" => $this->bathrooms,
             "area" => $this->area,
             "description" => $this->description,
+            // Imágenes: array de objetos { id, url, is_primary, sort_order }
+            "images" => $this->whenLoaded("images", function () {
+                return $this->images
+                    ->map(function ($img) {
+                        return [
+                            "id" => $img->id,
+                            "url" => Storage::disk("public")->url($img->path),
+                            "is_primary" => (bool) $img->is_primary,
+                            "sort_order" => $img->sort_order,
+                        ];
+                    })
+                    ->values();
+            }),
+            // URL de la imagen primaria (o null)
+            "primary_image" => $this->whenLoaded("primaryImage", function () {
+                return $this->primaryImage
+                    ? Storage::disk("public")->url($this->primaryImage->path)
+                    : null;
+            }),
             "owner" => $this->whenLoaded("user", function () {
                 return [
                     "id" => $this->user->id ?? null,

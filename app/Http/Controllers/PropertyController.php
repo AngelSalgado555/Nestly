@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use App\Http\Resources\PropertyResource;
 
 class PropertyController extends Controller
@@ -47,6 +48,24 @@ class PropertyController extends Controller
 
     public function store(Request $request)
     {
+        // --- DEBUG TEMPORAL ---
+        Log::info(
+            "[store] has(images): " .
+                ($request->has("images") ? "true" : "false"),
+        );
+        Log::info(
+            "[store] hasFile(images): " .
+                ($request->hasFile("images") ? "true" : "false"),
+        );
+        Log::info(
+            "[store] gettype(file(images)): " .
+                gettype($request->file("images")),
+        );
+        Log::info(
+            "[store] all keys: " . implode(", ", array_keys($request->all())),
+        );
+        // --- FIN DEBUG ---
+
         $validator = Validator::make($request->all(), [
             "title" => "required|string|max:255",
             "description" => "nullable|string",
@@ -104,28 +123,62 @@ class PropertyController extends Controller
                 "status" => $validated["status"] ?? "available",
             ]);
 
-            // imágenes
-            if ($request->hasFile("images")) {
-                $files = $request->file("images");
-                $files = array_slice($files, 0, 10);
-                foreach ($files as $i => $file) {
-                    $path = $file->store(
-                        "properties/{$property->id}",
-                        "public",
+            // imágenes (aceptar array images[] incluso cuando hasFile() es falso)
+            Log::info(
+                "[store] entering images block, has: " .
+                    ($request->has("images") ? "true" : "false"),
+            );
+            if ($request->has("images")) {
+                $files = $request->file("images", []);
+                Log::info(
+                    "[store] files type: " .
+                        gettype($files) .
+                        ", count: " .
+                        (is_array($files) ? count($files) : "N/A"),
+                );
+                if (is_array($files) && count($files) > 0) {
+                    $startOrder = (int) $property->images()->count();
+                    $files = array_slice($files, 0, 10);
+                    Log::info(
+                        "[store] entering foreach, count: " . count($files),
                     );
-                    $property->images()->create([
-                        "path" => $path,
-                        "sort_order" => $i,
-                        "is_primary" => $i === 0,
-                    ]);
+                    foreach ($files as $i => $file) {
+                        Log::info(
+                            "[store] file[" .
+                                $i .
+                                "] type: " .
+                                gettype($file) .
+                                ", valid: " .
+                                ($file && $file->isValid() ? "true" : "false"),
+                        );
+                        if ($file && $file->isValid()) {
+                            $path = $file->store(
+                                "properties/{$property->id}",
+                                "public",
+                            );
+                            Log::info("[store] saved path: " . $path);
+                            $property->images()->create([
+                                "path" => $path,
+                                "sort_order" => $startOrder + $i,
+                                "is_primary" =>
+                                    $startOrder === 0 && $i === 0
+                                        ? true
+                                        : false,
+                            ]);
+                        }
+                    }
+                    $property->load("images", "primaryImage");
+                } else {
+                    Log::info("[store] files not array or empty");
                 }
-                $property->load("images", "primaryImage");
+            } else {
+                Log::info("[store] request->has(images) is FALSE");
             }
 
             return response()->json(
                 [
                     "success" => true,
-                    "property" => $property,
+                    "property" => new PropertyResource($property),
                 ],
                 201,
             );
@@ -159,6 +212,24 @@ class PropertyController extends Controller
             return response()->json(["message" => "No autorizado"], 403);
         }
 
+        // --- DEBUG TEMPORAL ---
+        Log::info(
+            "[update] has(images): " .
+                ($request->has("images") ? "true" : "false"),
+        );
+        Log::info(
+            "[update] hasFile(images): " .
+                ($request->hasFile("images") ? "true" : "false"),
+        );
+        Log::info(
+            "[update] gettype(file(images)): " .
+                gettype($request->file("images")),
+        );
+        Log::info(
+            "[update] all keys: " . implode(", ", array_keys($request->all())),
+        );
+        // --- FIN DEBUG ---
+
         $validator = Validator::make($request->all(), [
             "title" => "nullable|string|max:255",
             "description" => "nullable|string",
@@ -169,12 +240,17 @@ class PropertyController extends Controller
             "price_cents" => "nullable|integer",
             "price" => "nullable|numeric",
             "status" => "nullable|in:available,sold,rented,unavailable",
+            // el contenedor debe ser array para que Laravel valide files[] correctamente
+            "images" => "nullable|array",
             "images.*" => "nullable|image|mimes:jpeg,png,jpg,webp|max:5120",
         ]);
 
         if ($validator->fails()) {
             return response()->json(
-                ["success" => false, "errors" => $validator->errors()],
+                [
+                    "success" => false,
+                    "errors" => $validator->errors(),
+                ],
                 422,
             );
         }
@@ -210,20 +286,44 @@ class PropertyController extends Controller
         try {
             $property->save();
 
-            // handle any new images appended
-            if ($request->hasFile("images")) {
-                $files = $request->file("images");
+            // handle any new images appended (robust)
+            Log::info(
+                "[update] entering images block, has: " .
+                    ($request->has("images") ? "true" : "false"),
+            );
+            $files = $request->file("images", []);
+            Log::info(
+                "[update] files type: " .
+                    gettype($files) .
+                    ", count: " .
+                    (is_array($files) ? count($files) : "N/A"),
+            );
+            if (is_array($files) && count($files) > 0) {
+                Log::info("[update] entering foreach, count: " . count($files));
+                $startOrder = (int) $property->images()->count();
                 $files = array_slice($files, 0, 10);
                 foreach ($files as $i => $file) {
-                    $path = $file->store(
-                        "properties/{$property->id}",
-                        "public",
+                    Log::info(
+                        "[update] file[" .
+                            $i .
+                            "] type: " .
+                            gettype($file) .
+                            ", valid: " .
+                            ($file && $file->isValid() ? "true" : "false"),
                     );
-                    $property->images()->create([
-                        "path" => $path,
-                        "sort_order" => (int) $property->images()->count() + $i,
-                        "is_primary" => false,
-                    ]);
+                    if ($file && $file->isValid()) {
+                        $path = $file->store(
+                            "properties/{$property->id}",
+                            "public",
+                        );
+                        Log::info("[update] saved path: " . $path);
+                        $property->images()->create([
+                            "path" => $path,
+                            "sort_order" => $startOrder + $i,
+                            "is_primary" =>
+                                $startOrder === 0 && $i === 0 ? true : false,
+                        ]);
+                    }
                 }
             }
 
@@ -231,11 +331,14 @@ class PropertyController extends Controller
 
             return response()->json([
                 "success" => true,
-                "property" => $property,
+                "property" => new PropertyResource($property),
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json(
-                ["success" => false, "error" => $e->getMessage()],
+                [
+                    "success" => false,
+                    "error" => $e->getMessage(),
+                ],
                 500,
             );
         }
