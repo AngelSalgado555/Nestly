@@ -84,6 +84,12 @@ export default function Navbar({ modo, setModo, onNavigate }) {
                 >
                     Vendedor
                 </button>
+                <button
+                    onClick={() => setModo("mis")}
+                    className={`px-4 py-2 rounded ${modo === "mis" ? "bg-emerald-600 text-white" : "bg-gray-100"}`}
+                >
+                    Mis piezas
+                </button>
 
                 {/* Profile avatar / dropdown */}
                 <div className="relative" ref={dropdownRef}>

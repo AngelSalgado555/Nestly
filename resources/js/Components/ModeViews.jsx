@@ -25,7 +25,6 @@ export function BuyerView() {
                 }
                 const data = await res.json();
                 if (!mounted) return;
-                // Laravel paginator returns { data: [...], meta: {...}, links: {...} }
                 const items = data.data ?? data;
                 setProperties(items);
                 setPagination(data.meta ?? null);
@@ -67,8 +66,22 @@ export function BuyerView() {
                             >
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h3 className="font-semibold text-lg">
+                                        <h3 className="font-semibold text-lg flex items-center gap-2">
                                             {p.title}
+                                            {p.status && (
+                                                <span
+                                                    className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                                                >
+                                                    {p.status === "available"
+                                                        ? "Disponible"
+                                                        : p.status === "sold"
+                                                          ? "Vendido"
+                                                          : p.status ===
+                                                              "rented"
+                                                            ? "Alquilado"
+                                                            : "No disponible"}
+                                                </span>
+                                            )}
                                         </h3>
                                         <p className="text-sm text-slate-600">
                                             {p.location}
@@ -100,7 +113,6 @@ export function BuyerView() {
                         ))
                     )}
 
-                    {/* Simple pagination controls */}
                     {pagination && (
                         <div className="flex items-center justify-between mt-4">
                             <div className="text-sm text-slate-600">
@@ -191,6 +203,312 @@ export function SellerView() {
     );
 }
 
+// View para propiedades del usuario logueado
+export function MyPropertiesView() {
+    const [properties, setProperties] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState(null);
+    const [editing, setEditing] = React.useState(null); // property being edited
+
+    React.useEffect(() => {
+        let mounted = true;
+        async function fetchMy() {
+            setLoading(true);
+            setError(null);
+            try {
+                // try read user from localStorage
+                let raw = null;
+                try {
+                    raw = localStorage.getItem("nestly_user");
+                } catch (e) {
+                    raw = null;
+                }
+                let userId = null;
+                if (raw) {
+                    try {
+                        userId = JSON.parse(raw).id;
+                    } catch (e) {
+                        userId = null;
+                    }
+                }
+                if (!userId) {
+                    const resUser = await fetch("/user", {
+                        credentials: "same-origin",
+                    });
+                    if (!resUser.ok) throw new Error("No autenticado");
+                    const u = await resUser.json();
+                    userId = u.id;
+                }
+
+                const res = await fetch(`/users/${userId}/properties`, {
+                    credentials: "same-origin",
+                });
+                if (!res.ok) throw new Error("Error al obtener propiedades");
+                const data = await res.json();
+                if (!mounted) return;
+                setProperties(data || []);
+            } catch (err) {
+                if (!mounted) return;
+                setError(err.message || "Error");
+            } finally {
+                if (!mounted) return;
+                setLoading(false);
+            }
+        }
+        fetchMy();
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    function handleUpdated(updated) {
+        setProperties((prev) =>
+            prev.map((p) => (p.id === updated.id ? updated : p)),
+        );
+        setEditing(null);
+    }
+
+    return (
+        <div className="p-6">
+            <h2 className="text-xl font-bold mb-4">Mis piezas</h2>
+            {loading && <div>Cargando...</div>}
+            {error && <div className="text-red-600">{error}</div>}
+            {!loading && !error && (
+                <div className="space-y-4">
+                    {properties.length === 0 ? (
+                        <div className="text-slate-600">
+                            No has publicado propiedades aún.
+                        </div>
+                    ) : (
+                        properties.map((p) => (
+                            <div
+                                key={p.id}
+                                className="border rounded p-4 bg-white shadow-sm"
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                                            {p.title}
+                                            {p.status && (
+                                                <span
+                                                    className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                                                >
+                                                    {p.status === "available"
+                                                        ? "Disponible"
+                                                        : p.status === "sold"
+                                                          ? "Vendido"
+                                                          : p.status ===
+                                                              "rented"
+                                                            ? "Alquilado"
+                                                            : "No disponible"}
+                                                </span>
+                                            )}
+                                        </h3>
+                                        <p className="text-sm text-slate-600">
+                                            {p.location}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setEditing(p)}
+                                            className="px-3 py-1 bg-gray-100 rounded"
+                                        >
+                                            Editar
+                                        </button>
+                                    </div>
+                                </div>
+                                {p.description && (
+                                    <p className="mt-2 text-sm text-slate-700">
+                                        {p.description}
+                                    </p>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+
+            {editing && (
+                <EditPropertyModal
+                    property={editing}
+                    onClose={() => setEditing(null)}
+                    onUpdated={handleUpdated}
+                />
+            )}
+        </div>
+    );
+}
+
+// Modal/componente para editar una propiedad
+function EditPropertyModal({ property, onClose, onUpdated }) {
+    const [title, setTitle] = React.useState(property.title || "");
+    const [description, setDescription] = React.useState(
+        property.description || "",
+    );
+    const [location, setLocation] = React.useState(property.location || "");
+    const [price, setPrice] = React.useState(property.price_eur ?? "");
+    const [rooms, setRooms] = React.useState(property.rooms ?? "");
+    const [bathrooms, setBathrooms] = React.useState(property.bathrooms ?? "");
+    const [area, setArea] = React.useState(property.area ?? "");
+    const [status, setStatus] = React.useState(property.status || "available");
+    const [files, setFiles] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+
+    function handleFiles(e) {
+        setFiles(Array.from(e.target.files || []));
+    }
+
+    async function submit() {
+        setLoading(true);
+        setError(null);
+        try {
+            const csrf =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute("content") || "";
+            const fd = new FormData();
+            if (title !== "") fd.append("title", title);
+            if (description !== "") fd.append("description", description);
+            if (location !== "") fd.append("location", location);
+            if (price !== "") fd.append("price", price);
+            if (rooms !== "") fd.append("rooms", rooms);
+            if (bathrooms !== "") fd.append("bathrooms", bathrooms);
+            if (area !== "") fd.append("area", area);
+            if (status !== "") fd.append("status", status);
+            files.forEach((f) => fd.append("images[]", f));
+
+            fd.append("_method", "PUT")
+
+            const res = await fetch(`/properties/${property.id}`, {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": csrf, "Accept": "application/json"},
+                credentials: "same-origin",
+                body: fd,
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.message || "Error al actualizar");
+            }
+            const data = await res.json();
+            if (data && data.property) {
+                onUpdated(data.property);
+            } else if (data) {
+                onUpdated(data);
+            }
+
+            onClose();
+        } catch (e) {
+            setError(e.message || "Error");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white p-6 rounded shadow w-full max-w-2xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Editar propiedad</h3>
+                    <button onClick={onClose} className="text-slate-500">
+                        ✕
+                    </button>
+                </div>
+                <div className="space-y-3">
+                    <input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full px-3 py-2 border rounded"
+                        placeholder="Título"
+                    />
+                    <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full px-3 py-2 border rounded"
+                        rows={3}
+                        placeholder="Descripción"
+                    />
+                    <input
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className="w-full px-3 py-2 border rounded"
+                        placeholder="Ubicación"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                        <input
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                            className="px-3 py-2 border rounded"
+                            placeholder="Precio (€)"
+                        />
+                        <input
+                            value={rooms}
+                            onChange={(e) => setRooms(e.target.value)}
+                            className="px-3 py-2 border rounded"
+                            placeholder="Habitaciones"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <input
+                            value={bathrooms}
+                            onChange={(e) => setBathrooms(e.target.value)}
+                            className="px-3 py-2 border rounded"
+                            placeholder="Baños"
+                        />
+                        <input
+                            value={area}
+                            onChange={(e) => setArea(e.target.value)}
+                            className="px-3 py-2 border rounded"
+                            placeholder="Área (m²)"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm mb-1">Estado</label>
+                        <select
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                            className="px-3 py-2 border rounded"
+                        >
+                            <option value="available">Disponible</option>
+                            <option value="sold">Vendido</option>
+                            <option value="rented">Alquilado</option>
+                            <option value="unavailable">No disponible</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm mb-1">
+                            Añadir imágenes (opcional)
+                        </label>
+                        <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={handleFiles}
+                        />
+                    </div>
+                    {error && <div className="text-red-600">{error}</div>}
+                    <div className="flex justify-end gap-2 mt-3">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 bg-gray-100 rounded"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type = "button"
+                            onClick={submit}
+                            disabled={loading}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded"
+                        >
+                            {loading ? "Guardando..." : "Guardar"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ModeApp({ onNavigate }) {
     function readStoredMode() {
         try {
@@ -239,7 +557,13 @@ export default function ModeApp({ onNavigate }) {
                     />
 
                     <div className="mt-6">
-                        {modo === "comprador" ? <BuyerView /> : <SellerView />}
+                        {modo === "comprador" ? (
+                            <BuyerView />
+                        ) : modo === "vendedor" ? (
+                            <SellerView />
+                        ) : (
+                            <MyPropertiesView />
+                        )}
                     </div>
                 </div>
             </div>

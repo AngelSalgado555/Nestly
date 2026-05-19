@@ -18,6 +18,7 @@ class PropertyResource extends JsonResource
         return [
             "id" => $this->id,
             "title" => $this->title,
+            "status" => $this->status ?? "available",
             "location" => $this->location,
             "price_eur" => $this->price_cents ? $this->price_cents / 100 : null,
             "rooms" => $this->rooms,

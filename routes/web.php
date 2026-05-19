@@ -39,6 +39,7 @@ Route::get("/properties", [PropertyController::class, "index"]);
 // Property routes protected by auth (creating and user-specific listings)
 Route::middleware(["auth"])->group(function () {
     Route::post("/properties", [PropertyController::class, "store"]);
+    Route::put("/properties/{property}", [PropertyController::class, "update"]);
     Route::get("/users/{userId}/properties", [
         PropertyController::class,
         "userProperties",
