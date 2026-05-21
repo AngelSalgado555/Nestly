@@ -130,13 +130,18 @@ class PropertyController extends Controller
             );
             if ($request->has("images")) {
                 $files = $request->file("images", []);
-                Log::info(
-                    "[store] files type: " .
-                        gettype($files) .
-                        ", count: " .
-                        (is_array($files) ? count($files) : "N/A"),
-                );
-                if (is_array($files) && count($files) > 0) {
+                if (!is_array($files)){
+                    $files = $files ? [$files] : [];
+                }
+
+                Log::info("[store] files normalized to array. Count: " . count($files));
+                // Log::info(
+                //     "[store] files type: " .
+                //         gettype($files) .
+                //         ", count: " .
+                //         (is_array($files) ? count($files) : "N/A"),
+                // );
+                if (count($files) > 0) {
                     $startOrder = (int) $property->images()->count();
                     $files = array_slice($files, 0, 10);
                     Log::info(
@@ -156,15 +161,19 @@ class PropertyController extends Controller
                                 "properties/{$property->id}",
                                 "public",
                             );
-                            Log::info("[store] saved path: " . $path);
-                            $property->images()->create([
-                                "path" => $path,
-                                "sort_order" => $startOrder + $i,
-                                "is_primary" =>
-                                    $startOrder === 0 && $i === 0
-                                        ? true
-                                        : false,
-                            ]);
+                            Log::info(
+                                "[store] saved path: " . ($path ?: "FALSE"),
+                            );
+                            if ($path !== false) {
+                                $property->images()->create([
+                                    "path" => $path,
+                                    "sort_order" => $startOrder + $i,
+                                    "is_primary" =>
+                                        $startOrder === 0 && $i === 0
+                                            ? true
+                                            : false,
+                                ]);
+                            }
                         }
                     }
                     $property->load("images", "primaryImage");
@@ -207,8 +216,8 @@ class PropertyController extends Controller
     // Actualiza una propiedad (solo propietario)
     public function update(Request $request, Property $property)
     {
-        $userId = Auth::id();
-        if (!$userId || $property->user_id !== $userId) {
+        $userId = (int) Auth::id();
+        if (!$userId || (int) $property->user_id !== $userId) {
             return response()->json(["message" => "No autorizado"], 403);
         }
 
@@ -316,13 +325,17 @@ class PropertyController extends Controller
                             "properties/{$property->id}",
                             "public",
                         );
-                        Log::info("[update] saved path: " . $path);
-                        $property->images()->create([
-                            "path" => $path,
-                            "sort_order" => $startOrder + $i,
-                            "is_primary" =>
-                                $startOrder === 0 && $i === 0 ? true : false,
-                        ]);
+                        Log::info("[update] saved path: " . ($path ?: "FALSE"));
+                        if ($path !== false) {
+                            $property->images()->create([
+                                "path" => $path,
+                                "sort_order" => $startOrder + $i,
+                                "is_primary" =>
+                                    $startOrder === 0 && $i === 0
+                                        ? true
+                                        : false,
+                            ]);
+                        }
                     }
                 }
             }

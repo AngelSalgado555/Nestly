@@ -3,12 +3,23 @@ import Navbar from "./Navbar";
 import PropertyForm from "./PropertyForm";
 import fondo from "../../images/Fondo.png";
 
-export function BuyerView() {
+/** Devuelve true solo si la URL parece una imagen real (tiene extensión de imagen) */
+function isValidImageUrl(url) {
+    return (
+        Boolean(url) &&
+        typeof url === "string" &&
+        /\.(jpe?g|png|gif|webp|bmp|svg)(\?|#|$)/i.test(url)
+    );
+}
+
+export function BuyerView({ filters }) {
     const [properties, setProperties] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState(null);
     const [page, setPage] = React.useState(1);
     const [pagination, setPagination] = React.useState(null);
+    const [favorites, setFavorites] = React.useState({});
+    
 
     React.useEffect(() => {
         let mounted = true;
@@ -27,6 +38,11 @@ export function BuyerView() {
                 if (!mounted) return;
                 const items = data.data ?? data;
                 setProperties(items);
+                const favMap = {};
+                items.forEach((p) => {
+                    favMap[p.id] = !!p.is_favorite;
+                });
+                setFavorites(favMap);
                 setPagination(data.meta ?? null);
             } catch (err) {
                 if (!mounted) return;
@@ -43,101 +59,206 @@ export function BuyerView() {
         };
     }, [page]);
 
+    async function toggleFavorite(propertyId, e) {
+        e.stopPropagation();
+        const csrf =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute("content") || "";
+        try {
+            const res = await fetch(`/favorites/${propertyId}`, {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": csrf },
+                credentials: "same-origin",
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setFavorites((prev) => ({
+                    ...prev,
+                    [propertyId]: data.is_favorite,
+                }));
+            }
+        } catch (err) {
+            // silently fail
+        }
+    }
+
+    const pisosFiltrados = (properties || []).filter((p) => {
+        
+        let cumpleTexto = true; 
+        if (filters && filters.busqueda) {
+            const textoBuscado = filters.busqueda.toLowerCase(); 
+            const tituloPiso = p.title ? p.title.toLowerCase() : ""; 
+            const ubicacionPiso = p.location ? p.location.toLowerCase() : "";
+
+            const enTitulo = tituloPiso.includes(textoBuscado);
+            const enUbicacion = ubicacionPiso.includes(textoBuscado);
+
+            if (!enTitulo && !enUbicacion) {
+                cumpleTexto = false;
+            }
+        }
+
+        let cumplePrecio = true; 
+        if (filters && filters.precioMax) {
+            const precioMax = Number(p.price_eur || p.price || 0);
+            const precioMaxUsuario = Number(filters.precioMax);
+            if (precioMax > precioMaxUsuario) {
+                cumplePrecio = false;
+            }
+        }
+
+        let cumpleHabitaciones = true; 
+        if (filters && filters.habitaciones) {
+            const habitacionesPiso = Number(p.rooms || 0); 
+            const habitacionesPisoUsuario = Number(filters.habitaciones);
+
+            if (habitacionesPiso < habitacionesPisoUsuario) {
+                cumpleHabitaciones = false;
+            }
+        }
+
+        return cumpleTexto && cumplePrecio && cumpleHabitaciones;
+        
+    });
     return (
-        <div className="p-6">
+        <div className="max-w-6xl mx-auto w-full">
             <h2 className="text-xl font-bold mb-4">
-                Buscador de pisos (Modo Comprador)
+                Buscador de pisos
             </h2>
 
             {loading && <div>Cargando propiedades...</div>}
             {error && <div className="text-red-600">Error: {error}</div>}
 
             {!loading && !error && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {properties.length === 0 ? (
                         <div className="text-slate-600">
                             No hay propiedades publicadas.
                         </div>
                     ) : (
-                        properties.map((p) => {
-                            const imageUrl =
-                                p.primary_image ||
-                                (p.images && p.images.length
-                                    ? p.images[0].url
-                                    : null);
-                            return (
-                                <div
-                                    key={p.id}
-                                    className="border rounded p-0 bg-white shadow-sm overflow-hidden"
-                                >
-                                    {imageUrl && (
-                                        <div className="w-full h-48 md:h-56 bg-slate-100">
-                                            <img
-                                                src={imageUrl}
-                                                alt={p.title}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="p-4">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h3 className="font-semibold text-lg flex items-center gap-2">
-                                                    {p.title}
-                                                    {p.status && (
-                                                        <span
-                                                            className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
-                                                        >
-                                                            {p.status ===
-                                                            "available"
-                                                                ? "Disponible"
-                                                                : p.status ===
-                                                                    "sold"
-                                                                  ? "Vendido"
-                                                                  : p.status ===
-                                                                      "rented"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {properties.map((p) => {
+                                const rawUrl =
+                                    p.primary_image || p.images?.[0]?.url || null;
+                                const imageUrl = isValidImageUrl(rawUrl)
+                                    ? rawUrl
+                                    : null;
+                                return (
+                                    <div
+                                        key={p.id}
+                                        className="border rounded p-0 bg-white shadow-sm overflow-hidden"
+                                    >
+                                        {imageUrl ? (
+                                            <div className="relative w-full h-48 md:h-84 bg-slate-100">
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={p.title}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <button
+                                                    onClick={(e) =>
+                                                        toggleFavorite(p.id, e)
+                                                    }
+                                                    className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
+                                                    title={
+                                                        favorites[p.id]
+                                                            ? "Quitar de favoritos"
+                                                            : "Añadir a favoritos"
+                                                    }
+                                                >
+                                                    <span
+                                                        className={`text-xl leading-none ${favorites[p.id] ? "text-rose-500" : "text-slate-400"}`}
+                                                    >
+                                                        {favorites[p.id]
+                                                            ? "♥"
+                                                            : "♡"}
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="relative w-full h-14 bg-slate-50 flex items-center justify-end px-2">
+                                                <button
+                                                    onClick={(e) =>
+                                                        toggleFavorite(p.id, e)
+                                                    }
+                                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
+                                                    title={
+                                                        favorites[p.id]
+                                                            ? "Quitar de favoritos"
+                                                            : "Añadir a favoritos"
+                                                    }
+                                                >
+                                                    <span
+                                                        className={`text-xl leading-none ${favorites[p.id] ? "text-rose-500" : "text-slate-400"}`}
+                                                    >
+                                                        {favorites[p.id]
+                                                            ? "♥"
+                                                            : "♡"}
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        )}
+                                        <div className="p-4">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                                                        {p.title}
+                                                        {p.status && (
+                                                            <span
+                                                                className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                                                            >
+                                                                {p.status ===
+                                                                "available"
+                                                                    ? "Disponible"
+                                                                    : p.status ===
+                                                                        "sold"
+                                                                    ? "Vendido"
+                                                                    : p.status ===
+                                                                        "rented"
                                                                     ? "Alquilado"
                                                                     : "No disponible"}
-                                                        </span>
-                                                    )}
-                                                </h3>
-                                                <p className="text-sm text-slate-600">
-                                                    {p.location}
-                                                </p>
-                                                <p className="text-sm text-slate-500">
-                                                    Por:{" "}
-                                                    {p.owner?.name ??
-                                                        "Desconocido"}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="font-bold text-emerald-600">
-                                                    {p.price_eur
-                                                        ? `${p.price_eur.toFixed(2)} €`
-                                                        : "—"}
+                                                            </span>
+                                                        )}
+                                                    </h3>
+                                                    <p className="text-sm text-slate-600">
+                                                        {p.location}
+                                                    </p>
+                                                    <p className="text-sm text-slate-500">
+                                                        Por:{" "}
+                                                        {p.owner?.name ??
+                                                            "Desconocido"}
+                                                    </p>
                                                 </div>
-                                                <div className="text-sm text-slate-500">
-                                                    {p.rooms ?? "—"} hab ·{" "}
-                                                    {p.bathrooms ?? "—"} baños ·{" "}
-                                                    {p.area
-                                                        ? `${p.area} m²`
-                                                        : "—"}
+                                                <div className="text-right">
+                                                    <div className="font-bold text-emerald-600">
+                                                        {p.price_eur
+                                                            ? `${p.price_eur.toFixed(2)} €`
+                                                            : "—"}
+                                                    </div>
+                                                    <div className="text-sm text-slate-500">
+                                                        {p.rooms ?? "—"} hab ·{" "}
+                                                        {p.bathrooms ?? "—"} baños ·{" "}
+                                                        {p.area
+                                                            ? `${p.area} m²`
+                                                            : "—"}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            {p.description && (
+                                                <p className="mt-2 text-sm text-slate-700">
+                                                    {p.description}
+                                                </p>
+                                            )}
                                         </div>
-                                        {p.description && (
-                                            <p className="mt-2 text-sm text-slate-700">
-                                                {p.description}
-                                            </p>
-                                        )}
                                     </div>
-                                </div>
-                            );
-                        })
+                                );
+                            })}
+                        </div>
                     )}
 
                     {pagination && (
-                        <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                             <div className="text-sm text-slate-600">
                                 Página {pagination.current_page} de{" "}
                                 {pagination.last_page}
@@ -269,7 +390,7 @@ export function MyPropertiesView() {
                 if (!res.ok) throw new Error("Error al obtener propiedades");
                 const data = await res.json();
                 if (!mounted) return;
-                setProperties(data || []);
+                setProperties(data.data ?? data ?? []);
             } catch (err) {
                 if (!mounted) return;
                 setError(err.message || "Error");
@@ -304,11 +425,11 @@ export function MyPropertiesView() {
                         </div>
                     ) : (
                         properties.map((p) => {
-                            const imageUrl =
-                                p.primary_image ||
-                                (p.images && p.images.length
-                                    ? p.images[0].url
-                                    : null);
+                            const rawUrl =
+                                p.primary_image || p.images?.[0]?.url || null;
+                            const imageUrl = isValidImageUrl(rawUrl)
+                                ? rawUrl
+                                : null;
                             return (
                                 <div
                                     key={p.id}
@@ -397,11 +518,43 @@ function EditPropertyModal({ property, onClose, onUpdated }) {
     const [area, setArea] = React.useState(property.area ?? "");
     const [status, setStatus] = React.useState(property.status || "available");
     const [files, setFiles] = React.useState([]);
+    const [previews, setPreviews] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState(null);
+    const inputRef = React.useRef(null);
+    const MAX_FILES = 10;
+
+    // Liberar object URLs al desmontar
+    React.useEffect(() => {
+        return () => previews.forEach((p) => URL.revokeObjectURL(p.url));
+    }, [previews]);
+
+    function openFileDialog() {
+        if (inputRef.current) inputRef.current.click();
+    }
 
     function handleFiles(e) {
-        setFiles(Array.from(e.target.files || []));
+        const list = Array.from(e.target.files || []);
+        if (!list.length) return;
+        const newFiles = [...files, ...list].slice(0, MAX_FILES);
+        const newPreviews = newFiles.map((f) => ({
+            file: f,
+            url: URL.createObjectURL(f),
+        }));
+        previews.forEach((p) => URL.revokeObjectURL(p.url));
+        setFiles(newFiles);
+        setPreviews(newPreviews);
+        if (inputRef.current) inputRef.current.value = null;
+    }
+
+    function removeFile(idx) {
+        const newFiles = [...files];
+        newFiles.splice(idx, 1);
+        const newPreviews = [...previews];
+        const removed = newPreviews.splice(idx, 1)[0];
+        if (removed) URL.revokeObjectURL(removed.url);
+        setFiles(newFiles);
+        setPreviews(newPreviews);
     }
 
     async function submit() {
@@ -515,15 +668,77 @@ function EditPropertyModal({ property, onClose, onUpdated }) {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm mb-1">
-                            Añadir imágenes (opcional)
+                        <label className="block text-sm text-slate-700 mb-1">
+                            Añadir imágenes (opcional, máx {MAX_FILES})
                         </label>
+
+                        {/* Input nativo oculto */}
                         <input
+                            ref={inputRef}
                             type="file"
                             multiple
                             accept="image/*"
                             onChange={handleFiles}
+                            className="hidden"
+                            aria-hidden="true"
                         />
+
+                        {/* Botón personalizado */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={openFileDialog}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded shadow hover:bg-emerald-700 transition-colors"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M16 3v4M8 3v4m8 0H8"
+                                    />
+                                </svg>
+                                <span>Seleccionar imágenes</span>
+                            </button>
+                            <span className="text-sm text-slate-600">
+                                {files.length} / {MAX_FILES} seleccionadas
+                            </span>
+                        </div>
+
+                        {/* Previews */}
+                        {previews.length > 0 && (
+                            <div className="grid grid-cols-3 gap-3 mt-3">
+                                {previews.map((pv, i) => (
+                                    <div
+                                        key={i}
+                                        className="relative border rounded overflow-hidden"
+                                    >
+                                        <img
+                                            src={pv.url}
+                                            alt={pv.file.name}
+                                            className="w-full h-28 object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeFile(i)}
+                                            className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-red-600 hover:bg-white"
+                                            aria-label={`Eliminar ${pv.file.name}`}
+                                        >
+                                            ×
+                                        </button>
+                                        <div className="p-1 text-xs text-slate-600 truncate">
+                                            {pv.file.name}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     {error && <div className="text-red-600">{error}</div>}
                     <div className="flex justify-end gap-2 mt-3">
@@ -547,7 +762,243 @@ function EditPropertyModal({ property, onClose, onUpdated }) {
     );
 }
 
-export default function ModeApp({ onNavigate }) {
+export function FavoritesView() {
+    const [properties, setProperties] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState(null);
+    const [page, setPage] = React.useState(1);
+    const [pagination, setPagination] = React.useState(null);
+    const [favorites, setFavorites] = React.useState({});
+
+    React.useEffect(() => {
+        let mounted = true;
+        async function fetchFavorites(p = 1) {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(`/favorites?page=${p}`, {
+                    credentials: "same-origin",
+                });
+                if (!res.ok) {
+                    if (res.status === 401)
+                        throw new Error(
+                            "Debes iniciar sesión para ver tus favoritos",
+                        );
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.message || `Error ${res.status}`);
+                }
+                const data = await res.json();
+                if (!mounted) return;
+                const items = data.data ?? data;
+                setProperties(items);
+                const favMap = {};
+                items.forEach((p) => {
+                    favMap[p.id] = true;
+                });
+                setFavorites(favMap);
+                setPagination(data.meta ?? null);
+            } catch (err) {
+                if (!mounted) return;
+                setError(err.message || "Error al cargar favoritos");
+            } finally {
+                if (!mounted) return;
+                setLoading(false);
+            }
+        }
+        fetchFavorites(page);
+        return () => {
+            mounted = false;
+        };
+    }, [page]);
+
+    async function toggleFavorite(propertyId, e) {
+        e.stopPropagation();
+        const csrf =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute("content") || "";
+        try {
+            const res = await fetch(`/favorites/${propertyId}`, {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": csrf },
+                credentials: "same-origin",
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (!data.is_favorite) {
+                    setProperties((prev) =>
+                        prev.filter((p) => p.id !== propertyId),
+                    );
+                    setFavorites((prev) => ({ ...prev, [propertyId]: false }));
+                } else {
+                    setFavorites((prev) => ({
+                        ...prev,
+                        [propertyId]: data.is_favorite,
+                    }));
+                }
+            }
+        } catch (err) {
+            // silently fail
+        }
+    }
+
+    return (
+        <div className="p-6">
+            <h2 className="text-xl font-bold mb-4">Mis favoritos</h2>
+
+            {loading && <div>Cargando favoritos...</div>}
+            {error && <div className="text-red-600">Error: {error}</div>}
+
+            {!loading && !error && (
+                <div className="space-y-4">
+                    {properties.length === 0 ? (
+                        <div className="text-slate-600 flex flex-col items-center py-8 gap-2">
+                            <span className="text-4xl">♡</span>
+                            <p>Aún no tienes propiedades favoritas.</p>
+                            <p className="text-sm text-slate-400">
+                                Pulsa el corazón en cualquier propiedad para
+                                guardarla aquí.
+                            </p>
+                        </div>
+                    ) : (
+                        properties.map((p) => {
+                            const rawUrl =
+                                p.primary_image || p.images?.[0]?.url || null;
+                            const imageUrl = isValidImageUrl(rawUrl)
+                                ? rawUrl
+                                : null;
+                            return (
+                                <div
+                                    key={p.id}
+                                    className="border rounded p-0 bg-white shadow-sm overflow-hidden"
+                                >
+                                    {imageUrl ? (
+                                        <div className="relative w-full h-48 md:h-56 bg-slate-100">
+                                            <img
+                                                src={imageUrl}
+                                                alt={p.title}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <button
+                                                onClick={(e) =>
+                                                    toggleFavorite(p.id, e)
+                                                }
+                                                className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
+                                                title="Quitar de favoritos"
+                                            >
+                                                <span className="text-xl leading-none text-rose-500">
+                                                    ♥
+                                                </span>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="relative w-full h-14 bg-slate-50 flex items-center justify-end px-2">
+                                            <button
+                                                onClick={(e) =>
+                                                    toggleFavorite(p.id, e)
+                                                }
+                                                className="w-9 h-9 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow hover:bg-white transition-colors"
+                                                title="Quitar de favoritos"
+                                            >
+                                                <span className="text-xl leading-none text-rose-500">
+                                                    ♥
+                                                </span>
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-semibold text-lg flex items-center gap-2">
+                                                    {p.title}
+                                                    {p.status && (
+                                                        <span
+                                                            className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "available" ? "bg-emerald-100 text-emerald-800" : p.status === "sold" ? "bg-red-100 text-red-800" : p.status === "rented" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-800"}`}
+                                                        >
+                                                            {p.status ===
+                                                            "available"
+                                                                ? "Disponible"
+                                                                : p.status ===
+                                                                    "sold"
+                                                                  ? "Vendido"
+                                                                  : p.status ===
+                                                                      "rented"
+                                                                    ? "Alquilado"
+                                                                    : "No disponible"}
+                                                        </span>
+                                                    )}
+                                                </h3>
+                                                <p className="text-sm text-slate-600">
+                                                    {p.location}
+                                                </p>
+                                                <p className="text-sm text-slate-500">
+                                                    Por:{" "}
+                                                    {p.owner?.name ??
+                                                        "Desconocido"}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-bold text-emerald-600">
+                                                    {p.price_eur
+                                                        ? `${p.price_eur.toFixed(2)} €`
+                                                        : "—"}
+                                                </div>
+                                                <div className="text-sm text-slate-500">
+                                                    {p.rooms ?? "—"} hab ·{" "}
+                                                    {p.bathrooms ?? "—"} baños ·{" "}
+                                                    {p.area
+                                                        ? `${p.area} m²`
+                                                        : "—"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {p.description && (
+                                            <p className="mt-2 text-sm text-slate-700">
+                                                {p.description}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+
+                    {pagination && (
+                        <div className="flex items-center justify-between mt-4">
+                            <div className="text-sm text-slate-600">
+                                Página {pagination.current_page} de{" "}
+                                {pagination.last_page}
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={pagination.current_page <= 1}
+                                    onClick={() =>
+                                        setPage((p) => Math.max(1, p - 1))
+                                    }
+                                    className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+                                >
+                                    Anterior
+                                </button>
+                                <button
+                                    disabled={
+                                        pagination.current_page >=
+                                        pagination.last_page
+                                    }
+                                    onClick={() => setPage((p) => p + 1)}
+                                    className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function ModeApp({ onNavigate  }) {
     function readStoredMode() {
         try {
             const v = localStorage.getItem("nestly_mode");
@@ -558,7 +1009,11 @@ export default function ModeApp({ onNavigate }) {
     }
 
     const [modo, setModoRaw] = React.useState(readStoredMode());
-
+    const [filters, setFilters] = React.useState({
+        busqueda: "",
+        precioMax: "",
+        habitaciones: ""
+    });
     const setModo = (v) => {
         setModoRaw(v);
         try {
@@ -585,20 +1040,85 @@ export default function ModeApp({ onNavigate }) {
             <div className="fixed inset-0 bg-slate-900/10 z-0 pointer-events-none " />
 
             {/* Contenedor de la Tarjeta */}
-            <div className="w-full max-w-2xl px-4 pt-16 relative z-10">
-                <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/40 p-6">
-                    {/* Navbar with mode switch */}
-                    <Navbar
-                        modo={modo}
-                        setModo={setModo}
-                        onNavigate={onNavigate}
-                    />
+            <div className="w-full max-w-6xl px-4 pt-12 z-10 ml-auto pr-6">
+                <Navbar
+                    modo={modo}
+                    setModo={setModo}
+                    onNavigate={onNavigate}
+                />
 
+                {modo === "comprador" && (
+                    <aside className="fixed left-6 top-24 w-72 bg-white rounded-xl shadow-xl p-5 z-40 border border-slate-100">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                            <span className="text-xrl"> 🔍 </span>
+                            <h2 className="text-lg text-slate-800">Filtrar Pisos </h2>
+                        </div>
+
+                        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                            {/* Filtro 1: Texto / Palabra clave */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                    Ubicación o palabra clave
+                                </label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Introduce la ubicación que deseas..." 
+                                    value={filters.busqueda}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700"
+                                    onChange={(e) => setFilters({...filters, busqueda: e.target.value })} 
+                                />
+                            </div>
+        
+                            {/* Filtro 2: Rango de Precio */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                    Precio Máximo (€)
+                                </label>
+                                <input 
+                                    type="number" 
+                                    placeholder="Cualquier precio"
+                                    value={filters.precioMax}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700"
+                                    onChange={(e) => setFilters({...filters, precioMax: e.target.value})}
+                                />
+                            </div>
+        
+                            {/* Filtro 3: Habitaciones */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                    Habitaciones mínimas
+                                </label>
+                                <select
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700"
+                                    value={filters.habitaciones}
+                                    onChange={(e) => setFilters({ ...filters, habitaciones: e.target.value })}
+                                >
+                                    <option value="">Cualquiera</option>
+                                    <option value="1">1+ hab</option>
+                                    <option value="2">2+ hab</option>
+                                    <option value="3">3+ hab</option>
+                                </select>
+                            </div>
+        
+                            {/* Botón de acción rápido */}
+                            <button 
+                                type="button"
+                                
+                                className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors shadow-sm"
+                            >
+                                Aplicar Filtros
+                            </button>
+                        </form>
+                    </aside>
+                )}
+                <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/40 p-6">
                     <div className="mt-6">
                         {modo === "comprador" ? (
-                            <BuyerView />
+                            <BuyerView filters={filters} />
                         ) : modo === "vendedor" ? (
                             <SellerView />
+                        ) : modo === "favoritos" ? (
+                            <FavoritesView />
                         ) : (
                             <MyPropertiesView />
                         )}

@@ -53,6 +53,9 @@ class PropertyResource extends JsonResource
             "created_at" => $this->created_at
                 ? $this->created_at->toDateTimeString()
                 : null,
+            "is_favorite" => auth()->check()
+                ? $this->favorites()->where("user_id", auth()->id())->exists()
+                : false,
         ];
     }
 }

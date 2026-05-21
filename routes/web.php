@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\FavoriteController;
 
 Route::get("/", function () {
     return view("welcome");
@@ -44,4 +45,6 @@ Route::middleware(["auth"])->group(function () {
         PropertyController::class,
         "userProperties",
     ]);
+    Route::post("/favorites/{property}", [FavoriteController::class, "toggle"]);
+    Route::get("/favorites", [FavoriteController::class, "index"]);
 });
