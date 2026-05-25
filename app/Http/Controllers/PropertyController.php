@@ -266,6 +266,26 @@ class PropertyController extends Controller
 
         $data = $validator->validated();
 
+        if ($request->has('delete_images')) {
+            // Decodificamos el JSON string que enviamos desde React ['imagesToDelete']
+            $imageIds = json_decode($request->input('delete_images'), true);
+    
+            if (is_array($imageIds) && count($imageIds) > 0) {
+                // Buscamos las imágenes vinculadas a esta propiedad por seguridad
+                $imagesToDestroy = $property->images()->whereIn('id', $imageIds)->get();
+    
+                foreach ($imagesToDestroy as $image) {
+                    // El campo 'path' guarda la ruta interna en storage (ej: 'properties/foto.jpg')
+                    // Si guardas la URL completa, limpia la ruta antes de usar Storage::disk
+                    if ($image->path && Storage::disk('public')->exists($image->path)) {
+                        Storage::disk('public')->delete($image->path);
+                    }
+    
+                    // Eliminamos la fila de la tabla en la base de datos
+                    $image->delete();
+                }
+            }
+        }
         // price handling
         if (isset($data["price_cents"])) {
             $property->price_cents = (int) $data["price_cents"];
