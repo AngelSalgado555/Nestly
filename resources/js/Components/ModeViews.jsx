@@ -3,21 +3,11 @@ import React from "react";
 import Navbar from "./Navbar";
 import fondo from "../../images/Fondo.png";
 
-// Importaciones directas de los archivos reales que SÍ existen en tu carpeta ModeViews
 import FilterPanel from "./ModeViews/FilterPanel";
 import BuyerView from "./ModeViews/BuyerView";
 import SellerView from "./ModeViews/SellerView";
 import FavoritesView from "./ModeViews/FavoritesView";
 import MyPropertiesView from "./ModeViews/MyPropertiesView";
-
-function FavoritesViewPlaceholder() {
-    return (
-        <div className="p-6 text-center text-slate-500">
-            <h2 className="text-xl font-bold mb-2 text-slate-700">Mis Favoritos</h2>
-            <p>Aquí se mostrarán las propiedades que guardes en el buscador.</p>
-        </div>
-    );
-}
 
 export default function ModeApp({ onNavigate }) {
     function readStoredMode() {
@@ -33,7 +23,7 @@ export default function ModeApp({ onNavigate }) {
     const [filters, setFilters] = React.useState({
         busqueda: "",
         precioMax: "",
-        habitaciones: ""
+        habitaciones: "",
     });
 
     const setModo = (v) => {
@@ -61,19 +51,16 @@ export default function ModeApp({ onNavigate }) {
             {/* Sutil superposición oscura */}
             <div className="fixed inset-0 bg-slate-900/10 z-0 pointer-events-none " />
 
-            {/* Contenedor adaptativo */}
-            <div className="w-full max-w-6xl px-4 pt-12 z-10 ml-auto pr-6">
-                <Navbar
-                    modo={modo}
-                    setModo={setModo}
-                    onNavigate={onNavigate}
-                />
+            {/* CAMBIO: En móvil ocupamos todo el ancho (w-full). El margen izquierdo largo (lg:ml-80) solo se activa si el filtro está flotando a la izquierda */}
+            <div
+                className={`w-full max-w-6xl px-4 pt-12 z-10 pr-6 ${
+                    modo === "comprador" ? "w-full lg:max-w-[calc(100%-22rem)] lg:ml-80" : "mx-auto"
+                }`}
+            >
+                <Navbar modo={modo} setModo={setModo} onNavigate={onNavigate} />
 
                 {modo === "comprador" && (
-                    <FilterPanel 
-                        filters={filters} 
-                        setFilters={setFilters} 
-                    />
+                    <FilterPanel filters={filters} setFilters={setFilters} />
                 )}
 
                 <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-xl border border-white/40 p-6">

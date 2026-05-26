@@ -80,18 +80,49 @@ class AuthController extends Controller
             return response()->json(["message" => "No autenticado"], 401);
         }
 
-        $validator = Validator::make($request->all(), [
+        // Reglas base: nombre y email siempre requeridos
+        $rules = [
             "name" => "required|string|max:255",
             "email" => "required|email|unique:users,email," . $user->id,
-        ]);
+        ];
+
+        // Reglas de contraseña: solo se validan si el usuario envía algún campo de contraseña
+        $wantsPasswordChange =
+            $request->filled("current_password") ||
+            $request->filled("new_password") ||
+            $request->filled("new_password_confirmation");
+
+        if ($wantsPasswordChange) {
+            $rules["current_password"] = "required|string";
+            $rules["new_password"] = "required|string|min:8|confirmed";
+            $rules["new_password_confirmation"] = "required|string";
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json(["errors" => $validator->errors()], 422);
         }
 
-        $data = $validator->validated();
-        $user->name = $data["name"];
-        $user->email = $data["email"];
+        // Verificar que la contraseña actual es correcta
+        if ($wantsPasswordChange) {
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json(
+                    [
+                        "errors" => [
+                            "current_password" => [
+                                "La contraseña actual no es correcta.",
+                            ],
+                        ],
+                    ],
+                    422,
+                );
+            }
+            $user->password = Hash::make($request->new_password);
+        }
+
+        $user->name = $request->name;
+        $user->email = $request->email;
         $user->save();
 
         return response()->json(["success" => true, "user" => $user]);

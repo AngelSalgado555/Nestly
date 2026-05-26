@@ -48,7 +48,6 @@ class PropertyController extends Controller
 
     public function store(Request $request)
     {
-        // --- DEBUG TEMPORAL ---
         Log::info(
             "[store] has(images): " .
                 ($request->has("images") ? "true" : "false"),
@@ -64,7 +63,6 @@ class PropertyController extends Controller
         Log::info(
             "[store] all keys: " . implode(", ", array_keys($request->all())),
         );
-        // --- FIN DEBUG ---
 
         $validator = Validator::make($request->all(), [
             "title" => "required|string|max:255",
@@ -135,12 +133,6 @@ class PropertyController extends Controller
                 }
 
                 Log::info("[store] files normalized to array. Count: " . count($files));
-                // Log::info(
-                //     "[store] files type: " .
-                //         gettype($files) .
-                //         ", count: " .
-                //         (is_array($files) ? count($files) : "N/A"),
-                // );
                 if (count($files) > 0) {
                     $startOrder = (int) $property->images()->count();
                     $files = array_slice($files, 0, 10);

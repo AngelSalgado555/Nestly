@@ -4,15 +4,6 @@ import React from "react";
 import PropertyCard from "./PropertyCard";
 import PropertyDetailView from "./PropertyDetailView";
 
-/** Devuelve true solo si la URL parece una imagen real (tiene extensión de imagen) */
-function isValidImageUrl(url) {
-    return (
-        Boolean(url) &&
-        typeof url === "string" &&
-        /\.(jpe?g|png|gif|webp|bmp|svg)(\?|#|$)/i.test(url)
-    );
-}
-
 export default function BuyerView({ filters }) {
     const [properties, setProperties] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -85,10 +76,10 @@ export default function BuyerView({ filters }) {
             }
         } catch (err) {
             // silencio
+            console.log("Ha ocurrido un error: " + err);
         }
     }
 
-    // LÓGICA DE FILTRADO INMUTABLE RECUPERADA (Línea 75 de tu archivo original)
     const pisosFiltrados = (properties || []).filter((p) => {
         let cumpleTexto = true;
         if (filters && filters.busqueda) {
@@ -118,7 +109,7 @@ export default function BuyerView({ filters }) {
             const habitacionesPiso = Number(p.rooms || 0);
             const habitacionesPisoUsuario = Number(filters.habitaciones);
 
-            if (habitacionesPiso > habitacionesPisoUsuario) {
+            if (habitacionesPiso !== habitacionesPisoUsuario) {
                 cumpleHabitaciones = false;
             }
         }
@@ -146,7 +137,7 @@ export default function BuyerView({ filters }) {
                     </div>
                 ) : (
                     /* Renderizado en grid reutilizando el componente PropertyCard */
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {pisosFiltrados.map((p) => (
                             <PropertyCard
                                 key={p.id}

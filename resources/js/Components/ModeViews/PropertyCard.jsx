@@ -1,13 +1,17 @@
 // resources/js/Components/ModeViews/PropertyCard.jsx
 import React from "react";
 
-/** Devuelve true solo si la URL parece una imagen real (tiene extensión de imagen) */
+/** Devuelve true si la URL apunta a una imagen válida.
+ *  - Acepta URLs externas (http/https) o de Unsplash directamente,
+ *    ya que no siempre llevan extensión de fichero.
+ *  - Para rutas locales exige extensión reconocible.
+ */
 function isValidImageUrl(url) {
-    return (
-        Boolean(url) &&
-        typeof url === "string" &&
-        /\.(jpe?g|png|gif|webp|bmp|svg)(\?|#|$)/i.test(url)
-    );
+    if (!url || typeof url !== "string") return false;
+    // URLs externas (Unsplash u otros CDN): se aceptan sin requerir extensión
+    if (url.startsWith("http://") || url.startsWith("https://")) return true;
+    // Rutas locales: exigimos extensión de imagen reconocible
+    return /\.(jpe?g|png|gif|webp|bmp|svg)(\?|#|$)/i.test(url);
 }
 
 export default function PropertyCard({
@@ -21,16 +25,27 @@ export default function PropertyCard({
     // 1. Recopilamos todas las imágenes válidas disponibles del piso
     const allImages = React.useMemo(() => {
         const list = [];
-        // Si hay una imagen primaria destacada, la ponemos primero
+
+        // Si hay una imagen primaria destacada del sistema antiguo, la ponemos
         if (isValidImageUrl(property.primary_image)) {
             list.push(property.primary_image);
         }
-        // Añadimos las demás imágenes del array si existen
+
+        // Añadimos las imágenes de la tabla secundaria (property_images)
         if (Array.isArray(property.images)) {
             property.images.forEach((img) => {
-                const url = img?.url || img;
-                if (isValidImageUrl(url) && !list.includes(url)) {
-                    list.push(url);
+                // 🔑 Buscamos .path (que es el campo real de tu DB) o .url o el string directo
+                let rawPath = img?.path || img?.url || img;
+
+                if (rawPath && typeof rawPath === "string") {
+                    // Si es una URL externa (Unsplash) se queda igual; si es local, se le pone el prefijo de Laravel
+                    const finalUrl = rawPath.startsWith("http")
+                        ? rawPath
+                        : `/storage/${rawPath}`;
+
+                    if (isValidImageUrl(finalUrl) && !list.includes(finalUrl)) {
+                        list.push(finalUrl);
+                    }
                 }
             });
         }

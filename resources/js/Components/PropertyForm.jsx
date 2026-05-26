@@ -13,7 +13,6 @@ export default function PropertyForm({ property, onPublished }) {
     const [files, setFiles] = React.useState([]); // array of File
     const [previews, setPreviews] = React.useState([]); // array of {file, url}
     
-    // Almacena los IDs de las imágenes existentes que el usuario quiere eliminar
     const [imagesToDelete, setImagesToDelete] = React.useState([]);
     // Inicializamos las imágenes existentes con las que ya trae la propiedad si estamos editando
     const [existingImages, setExistingImages] = React.useState(property?.images || []);
@@ -35,7 +34,6 @@ export default function PropertyForm({ property, onPublished }) {
             setRooms(property.rooms || "");
             setBathrooms(property.bathrooms || "");
             setArea(property.area || "");
-            // 🔥 Sincronizamos correctamente las imágenes existentes al cambiar de propiedad
             setExistingImages(property.images || []);
             setImagesToDelete([]); // Limpiamos la papelera al cambiar de piso
         } else {
@@ -109,7 +107,6 @@ export default function PropertyForm({ property, onPublished }) {
             if (bathrooms !== "") formData.append("bathrooms", bathrooms);
             if (area !== "") formData.append("area", area);
 
-            // 🚀 ENVIAMOS LOS IDS DE LAS FOTOS A BORRAR COMO JSON
             if (imagesToDelete.length > 0) {
                 formData.append("delete_images", JSON.stringify(imagesToDelete));
             }
@@ -128,7 +125,7 @@ export default function PropertyForm({ property, onPublished }) {
             const url = property?.id ? `/properties/${property.id}` : "/properties";
 
             const res = await fetch(url, {
-                method: "POST", // Mantenemos POST debido al envío de ficheros binarios
+                method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": csrfToken || "",
                 },
@@ -288,7 +285,6 @@ export default function PropertyForm({ property, onPublished }) {
                     </div>
                 </div>
 
-                {/* 📸 CORRECCIÓN AQUÍ: Ahora recorremos el estado reactivo 'existingImages' */}
                 {existingImages && existingImages.length > 0 && (
                     <div className="mb-4">
                         <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">

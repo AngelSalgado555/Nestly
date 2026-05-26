@@ -19,6 +19,7 @@ export default function Navbar({ modo, setModo, onNavigate }) {
             });
         } catch (e) {
             // ignore errors
+            console.log("Error: " + e);
         }
 
         try {
@@ -34,7 +35,6 @@ export default function Navbar({ modo, setModo, onNavigate }) {
         }
     }
 
-    // Close dropdown on outside click
     useEffect(() => {
         function handleClickOutside(e) {
             if (

@@ -55,7 +55,7 @@ export default function FavoritesView() {
                     .querySelector('meta[name="csrf-token"]')
                     ?.getAttribute("content") || "";
             const res = await fetch(`/favorites/${propertyId}`, {
-                method: "POST", // Tu backend conmuta el estado con un POST a la ruta del ID
+                method: "POST",
                 headers: { "X-CSRF-TOKEN": csrf },
                 credentials: "same-origin",
             });

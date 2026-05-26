@@ -5,7 +5,6 @@ import PropertyForm from "../PropertyForm";
 
 export default function PropertyFormModal({ property, onClose, onUpdated }) {
 
-    // Cerrar con Escape
     useEffect(() => {
         function handleKey(e) {
             if (e.key === "Escape") onClose();
@@ -25,7 +24,6 @@ export default function PropertyFormModal({ property, onClose, onUpdated }) {
 
     // Callback que recibe PropertyForm al guardar con éxito
     function handlePublished(data) {
-        // La API puede devolver { property: {...} } o el objeto directamente
         const updated = data?.property ?? data;
         if (onUpdated) onUpdated(updated);
         onClose();

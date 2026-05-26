@@ -29,9 +29,15 @@ class PropertyResource extends JsonResource
             "images" => $this->whenLoaded("images", function () {
                 return $this->images
                     ->map(function ($img) {
+                        // Si el path ya es una URL absoluta (ej: Unsplash), la devolvemos tal cual
+                        $url =
+                            str_starts_with($img->path, "http://") ||
+                            str_starts_with($img->path, "https://")
+                                ? $img->path
+                                : Storage::disk("public")->url($img->path);
                         return [
                             "id" => $img->id,
-                            "url" => Storage::disk("public")->url($img->path),
+                            "url" => $url,
                             "is_primary" => (bool) $img->is_primary,
                             "sort_order" => $img->sort_order,
                         ];
@@ -40,9 +46,14 @@ class PropertyResource extends JsonResource
             }),
             // URL de la imagen primaria (o null)
             "primary_image" => $this->whenLoaded("primaryImage", function () {
-                return $this->primaryImage
-                    ? Storage::disk("public")->url($this->primaryImage->path)
-                    : null;
+                if (!$this->primaryImage) {
+                    return null;
+                }
+                // Si el path ya es una URL absoluta, la devolvemos tal cual
+                return str_starts_with($this->primaryImage->path, "http://") ||
+                    str_starts_with($this->primaryImage->path, "https://")
+                    ? $this->primaryImage->path
+                    : Storage::disk("public")->url($this->primaryImage->path);
             }),
             "owner" => $this->whenLoaded("user", function () {
                 return [
